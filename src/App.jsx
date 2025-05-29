@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { QRCodeCanvas } from 'qrcode.react';
 import { ArrowDownTrayIcon, TrashIcon } from '@heroicons/react/24/outline';
+import axios from 'axios';
 
 function App() {
   const [text, setText] = useState('');
@@ -8,6 +9,8 @@ function App() {
   const [bgColor, setBgColor] = useState('#FFFFFF');
   const [fgColor, setFgColor] = useState('#000000');
   const [history, setHistory] = useState([]);
+  const [serverQR, setServerQR] = useState('');
+  const [loading, setLoading] = useState(false);
 
   useEffect(() => {
     const savedHistory = localStorage.getItem('qrHistory');
@@ -15,6 +18,31 @@ function App() {
       setHistory(JSON.parse(savedHistory));
     }
   }, []);
+
+  useEffect(() => {
+    if (text) {
+      generateServerQR();
+    } else {
+      setServerQR('');
+    }
+  }, [text, size, bgColor, fgColor]);
+
+  const generateServerQR = async () => {
+    try {
+      setLoading(true);
+      const response = await axios.post('http://localhost:3000/generate-qr', {
+        text,
+        size,
+        bgColor,
+        fgColor
+      });
+      setServerQR(response.data.qrCode);
+    } catch (error) {
+      console.error('Failed to generate server QR code:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const saveToHistory = () => {
     if (!text) return;
@@ -33,10 +61,10 @@ function App() {
   };
 
   const downloadQR = () => {
-    const canvas = document.querySelector('canvas');
-    const image = canvas.toDataURL('image/png');
+    if (!serverQR) return;
+    
     const link = document.createElement('a');
-    link.href = image;
+    link.href = serverQR;
     link.download = 'qrcode.png';
     document.body.appendChild(link);
     link.click();
@@ -118,7 +146,7 @@ function App() {
             </div>
 
             <div className="mt-6 flex justify-center">
-              {text && (
+              {text && !loading && (
                 <button
                   onClick={downloadQR}
                   className="flex items-center px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
@@ -131,16 +159,15 @@ function App() {
           </div>
 
           <div className="space-y-6">
-            <div className="bg-white p-6 rounded-lg shadow-md flex justify-center items-center">
-              {text ? (
-                <QRCodeCanvas
-                  value={text}
-                  size={size}
-                  bgColor={bgColor}
-                  fgColor={fgColor}
-                  level="H"
-                  includeMargin={true}
-                />
+            <div className="bg-white p-6 rounded-lg shadow-md flex justify-center items-center min-h-[300px]">
+              {loading ? (
+                <div className="text-gray-400">Gerando QR Code...</div>
+              ) : text ? (
+                serverQR ? (
+                  <img src={serverQR} alt="QR Code" className="max-w-full" />
+                ) : (
+                  <div className="text-gray-400">Erro ao gerar QR Code</div>
+                )
               ) : (
                 <div className="text-gray-400 text-center">
                   Digite algo para gerar o QR Code
@@ -183,4 +210,4 @@ function App() {
   );
 }
 
-export default App
+export default App;
