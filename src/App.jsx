@@ -8,6 +8,7 @@ function App() {
   const [bgColor, setBgColor] = useState('#FFFFFF');
   const [fgColor, setFgColor] = useState('#000000');
   const [history, setHistory] = useState([]);
+  const [serverQR, setServerQR] = useState('');
 
   useEffect(() => {
     const savedHistory = localStorage.getItem('qrHistory');
@@ -15,6 +16,34 @@ function App() {
       setHistory(JSON.parse(savedHistory));
     }
   }, []);
+
+  useEffect(() => {
+    if (text) {
+      generateServerQR();
+    }
+  }, [text, size, bgColor, fgColor]);
+
+  const generateServerQR = async () => {
+    try {
+      const response = await fetch('http://localhost:3000/generate-qr', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          text,
+          size,
+          dark: fgColor,
+          light: bgColor
+        })
+      });
+      
+      const data = await response.json();
+      setServerQR(data.qrCode);
+    } catch (error) {
+      console.error('Failed to generate QR code from server:', error);
+    }
+  };
 
   const saveToHistory = () => {
     if (!text) return;
@@ -33,10 +62,8 @@ function App() {
   };
 
   const downloadQR = () => {
-    const canvas = document.querySelector('canvas');
-    const image = canvas.toDataURL('image/png');
     const link = document.createElement('a');
-    link.href = image;
+    link.href = serverQR;
     link.download = 'qrcode.png';
     document.body.appendChild(link);
     link.click();
@@ -133,14 +160,18 @@ function App() {
           <div className="space-y-6">
             <div className="bg-white p-6 rounded-lg shadow-md flex justify-center items-center">
               {text ? (
-                <QRCodeCanvas
-                  value={text}
-                  size={size}
-                  bgColor={bgColor}
-                  fgColor={fgColor}
-                  level="H"
-                  includeMargin={true}
-                />
+                serverQR ? (
+                  <img src={serverQR} alt="QR Code" />
+                ) : (
+                  <QRCodeCanvas
+                    value={text}
+                    size={size}
+                    bgColor={bgColor}
+                    fgColor={fgColor}
+                    level="H"
+                    includeMargin={true}
+                  />
+                )
               ) : (
                 <div className="text-gray-400 text-center">
                   Digite algo para gerar o QR Code
@@ -183,4 +214,4 @@ function App() {
   );
 }
 
-export default App
+export default App;
